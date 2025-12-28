@@ -1,12 +1,19 @@
 #!/bin/bash
 
-log_files="/var/log/auth.log*" 
+LOG_FILES="/home/baciu/Downloads/auth.log*" 
 
- zcat "session" $log_files | grep -v "root" | sort
-	
-	#if [[ $linie == *session* && $linie != *root* ]]; then
-	#	echo "$linie"
-	#fi
+zcat -f $LOG_FILES | grep 'pam_unix(gdm-password:session): session' | sort -r | while read ISO_DATE MSG; do
+    # extragem user-ul
+    USER=$(echo $MSG | grep -Eo "user (\w+)" | awk '{print $2}')
 
- 
+    # data in format human-friendly
+    DATE=$(date -d "$ISO_DATE" "+%a %b %d %H:%M")
 
+    if [[ $MSG == *opened* ]]; then
+        # sesiune deschisa
+        echo "$USER tty2 tty2 $DATE - OPENED"
+    else
+        # sesiune inchisa
+        echo "$USER tty2 tty2 $DATE - CLOSED"
+    fi
+done
