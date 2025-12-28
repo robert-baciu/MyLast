@@ -2,7 +2,7 @@
 
 log_files="/var/log/auth.log*" 
 
-sudo zgrep "session" $log_files | grep -v "root" | sort
+ zcat "session" $log_files | grep -v "root" | sort
 	
 	#if [[ $linie == *session* && $linie != *root* ]]; then
 	#	echo "$linie"
