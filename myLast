@@ -1,19 +1,27 @@
 #!/bin/bash
 
-LOG_FILES="/home/baciu/Downloads/auth.log*" 
+LOG_FILES="/var/log/auth.log*" 
 
-zcat -f $LOG_FILES | grep 'pam_unix(gdm-password:session): session' | sort -r | while read ISO_DATE MSG; do
-    # extragem user-ul
-    USER=$(echo $MSG | grep -Eo "user (\w+)" | awk '{print $2}')
+zcat -f  $LOG_FILES | grep "systemd" | grep -v -e "root" -e "Watching" -e "c1" -e "off" | sort -r | while read ISO_DATE MSG; do
+	DATE=$(date -d "$ISO_DATE" "+%a %b %d %H:%M")
+	#aceasta comanda cauta user si extrage tot ce gaseste pana la prima paranteza, dar se asigura ca in aceeas linie exista un UID format din 4 sau mai multe cifre, pentru a>
+	#>garanta ca este vorba despre un user obisnuit, nu de gdm, care are uid 120 sau de root care are uid 0
+	USER=$(echo $MSG | grep -E "uid=[0-9]{4,}" | grep -oP "user \K[^ (]+")
 
-    # data in format human-friendly
-    DATE=$(date -d "$ISO_DATE" "+%a %b %d %H:%M")
+	if [[ $MSG == *powering* ]]; then
+                echo "session closed"
+       
+	elif [[ $MSG == *seat0* ]]; then
+		echo "reboot system boot kernel $DATE"
+	
+	# uid(user id) =120 este un cont cu permisiuni limitate creat special pt a rula interfata de login
+	elif [[ $MSG == *"uid=120"* ]]; then
+		echo "$USER seat0 login screen $DATE"
 
-    if [[ $MSG == *opened* ]]; then
-        # sesiune deschisa
-        echo "$USER tty2 tty2 $DATE - OPENED"
-    else
-        # sesiune inchisa
-        echo "$USER tty2 tty2 $DATE - CLOSED"
-    fi
+	elif [[ $MSG == *uid* ]]; then
+		echo "$USER session opened $DATE"
+	fi
+	
+
 done
+
