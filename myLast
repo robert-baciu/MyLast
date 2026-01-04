@@ -2,30 +2,35 @@
 
 LOG_FILES="/var/log/auth.log*" 
 
-zcat -f  $LOG_FILES | grep "systemd" | grep -v -e "root" -e "Watching" -e "c1" -e "off" | sort -r | while read ISO_DATE MSG; do
-	DATE=$(date -d "$ISO_DATE" "+%a %b %d %H:%M")
-	DATE_SECONDS=$(date -d "$ISO_DATE" +%s)
-	USER=$(echo $MSG | grep -Eo "user (\w+)" | awk '{print $2}')
+zcat -f $LOG_FILES \
+| grep "pam_unix(gdm-password:session): session" \
+| sort -r \
+| while read ISO_DATE MSG; do
+	if [[ $MSG == *opened* ]]; then
+        OPEN_DATE=$(date -d "$ISO_DATE" "+%a %b %d %H:%M")
+        OPEN_EPOCH=$(date -d "$ISO_DATE" +%s)
 
-	if [[ $MSG == *powering* ]]; then
-		END=$DATE_SECONDS
-		END_DATE=$DATE
-                echo "session closed"
-       
-	elif [[ $MSG == *seat0* ]]; then
-		echo "reboot system boot kernel $DATE - $END_DATE"
-	
-	# uid(user id) =120 este un cont cu permisiuni limitate creat special pt a rula interfata de login
-	elif [[ $MSG == *"uid=120"* ]]; then
-		echo "$LAST_USER seat0 login screen $DATE - $END_DATE"
+        USER=$(echo $MSG | grep -Eo "user (\w+)" | awk '{print $2}')
 
-	elif [[ $MSG == *uid* ]]; then
-		LAST_USER=$USER
-		DIFF=$((END-DATE_SECONDS))
-		DURATION=$(date -u -d @"$DIFF" +"%H:%M")
-		echo "$USER session opened $DATE - $END_DATE ($DURATION)"
+        if [[ -z $CLOSE_ISO_DATE ]]; then
+            # sesiune deschisa, neincheiata
+            echo "$USER  tty2  tty2  $OPEN_DATE   still logged in"
+        else
+            # sesiune deschisa, incheiata
+            CLOSE_DATE=$(date -d "$CLOSE_ISO_DATE" "+%H:%M")
+            CLOSE_EPOCH=$(date -d "$CLOSE_ISO_DATE" +%s)
+            DURATION_EPOCH=$((CLOSE_EPOCH - OPEN_EPOCH))
+            DURATION_DAYS=$((DURATION_EPOCH / 86400))
+            DURATION=$(date -u -d "@$DURATION_EPOCH" +"%H:%M")
+
+            if [[ $DURATION_DAYS == 0 ]]; then
+                echo "$USER  tty2  tty2  $OPEN_DATE - $CLOSE_DATE ($DURATION)"
+            else
+                echo "$USER  tty2  tty2  $OPEN_DATE - $CLOSE_DATE ($DURATION_DAYS+$DURATION)"
+            fi
+        fi
+	elif [[ $MSG == *closed* ]]; then
+        # sesiune inchisa
+		CLOSE_ISO_DATE=$ISO_DATE
 	fi
-	
-
 done
-
