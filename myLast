@@ -1,5 +1,53 @@
 #!/bin/bash
 
+# parsarea argumentelor
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -n|--limit)
+            ARG_LIMIT="$2"
+            shift 2
+            ;;
+        -p|--present)
+            ARG_PRESENT="$2"
+            shift 2
+            ;;
+        -s|--since)
+            ARG_SINCE="$2"
+            shift 2
+            ;;
+        -t|--until)
+            ARG_UNTIL="$2"
+            shift 2
+            ;;
+    esac
+done
+
+if [[ -n $ARG_LIMIT ]]; then
+    # -n
+    # Tell last how many lines to show.
+    LOGINS_LINE_LIMIT="$ARG_LIMIT"
+fi
+
+if [[ -n $ARG_PRESENT ]]; then
+    # -p
+    # Display the users who were present at the specified time.
+    # This is like using the options --since and --until together with the same time.
+    LOGINS_SINCE="$ARG_PRESENT"
+    LOGINS_UNTIL="$ARG_PRESENT"
+fi
+
+if [[ -n $ARG_SINCE ]]; then
+    # -s
+    # Display the state of logins since the specified time.
+    LOGINS_SINCE="$ARG_SINCE"
+fi
+
+if [[ -n $ARG_UNTIL ]]; then
+    # -t
+    # Display the state of logins until the specified time.
+    LOGINS_UNTIL="$ARG_UNTIL"
+fi
+
 LOG_FILES="/var/log/auth.log*" 
 
 zcat -f $LOG_FILES \
@@ -7,8 +55,25 @@ zcat -f $LOG_FILES \
 | sort -r \
 | while read ISO_DATE MSG; do
 	if [[ $MSG == *opened* ]]; then
+        # sesiune deschisa
+        if [[ -n $LOGINS_LINE_LIMIT ]]; then
+            if [[ $LOGINS_LINE_LIMIT -gt 0 ]]; then
+                LOGINS_LINE_LIMIT=$((LOGINS_LINE_LIMIT - 1))
+            else
+                break
+            fi
+        fi
+
         OPEN_DATE=$(date -d "$ISO_DATE" "+%a %b %d %H:%M")
         OPEN_EPOCH=$(date -d "$ISO_DATE" +%s)
+
+        if [[ -n $LOGINS_SINCE ]]; then
+            : # TODO
+        fi
+
+        if [[ -n $LOGINS_UNTIL ]]; then
+            : # TODO
+        fi
 
         USER=$(echo $MSG | grep -Eo "user (\w+)" | awk '{print $2}')
 
