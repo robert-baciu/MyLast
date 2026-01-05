@@ -32,20 +32,19 @@ if [[ -n $ARG_PRESENT ]]; then
     # -p
     # Display the users who were present at the specified time.
     # This is like using the options --since and --until together with the same time.
-    LOGINS_SINCE="$ARG_PRESENT"
-    LOGINS_UNTIL="$ARG_PRESENT"
+    LOGINS_PRESENT=$(date -d "$ARG_PRESENT" +%s)    
 fi
 
 if [[ -n $ARG_SINCE ]]; then
     # -s
     # Display the state of logins since the specified time.
-    LOGINS_SINCE="$ARG_SINCE"
+    LOGINS_SINCE=$(date -d "$ARG_SINCE" +%s)
 fi
 
 if [[ -n $ARG_UNTIL ]]; then
     # -t
     # Display the state of logins until the specified time.
-    LOGINS_UNTIL="$ARG_UNTIL"
+    LOGINS_UNTIL=$(date -d "$ARG_UNTIL" +%s)
 fi
 
 LOG_FILES="/var/log/auth.log*" 
@@ -67,13 +66,30 @@ zcat -f $LOG_FILES \
         OPEN_DATE=$(date -d "$ISO_DATE" "+%a %b %d %H:%M")
         OPEN_EPOCH=$(date -d "$ISO_DATE" +%s)
 
+#daca este activ argumentul -p va afisa linia doar daca este ziua ceruta
+
+	if [[ -n $LOGINS_PRESENT ]]; then
+               if [[ $OPEN_EPOCH -ge $LOGINS_PRESENT && $OPEN_EPOCH -lt $((LOGINS_PRESENT + 86400)) ]]; then
+                       :
+		else
+			continue #cauta in continuare
+               fi
+        fi
+
+
         if [[ -n $LOGINS_SINCE ]]; then
-            : # TODO
+            if [[ $OPEN_EPOCH -lt $LOGINS_SINCE ]]; then 
+			break
+	    fi
         fi
 
         if [[ -n $LOGINS_UNTIL ]]; then
-            : # TODO
+		if [[ $OPEN_EPOCH -gt $LOGINS_UNTIL ]]; then 
+			continue  #trece la urmatoarea linie, o ignora pe cea prezenta
+
+		fi
         fi
+
 
         USER=$(echo $MSG | grep -Eo "user (\w+)" | awk '{print $2}')
 
