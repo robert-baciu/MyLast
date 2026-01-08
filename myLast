@@ -50,10 +50,10 @@ fi
 LOG_FILES="/var/log/auth.log*" 
 
 zcat -f $LOG_FILES \
-| grep "pam_unix(gdm-password:session): session" \
+| grep -E "pam_unix\(gdm-password:session\): session opened|powering down" \
 | sort -r \
 | while read ISO_DATE MSG; do
-	if [[ $MSG == *opened* ]]; then
+    if [[ $MSG == *"session opened"* ]]; then
         # sesiune deschisa
         if [[ -n $LOGINS_LINE_LIMIT ]]; then
             if [[ $LOGINS_LINE_LIMIT -gt 0 ]]; then
@@ -66,36 +66,32 @@ zcat -f $LOG_FILES \
         OPEN_DATE=$(date -d "$ISO_DATE" "+%a %b %d %H:%M")
         OPEN_EPOCH=$(date -d "$ISO_DATE" +%s)
 
-#daca este activ argumentul -p va afisa linia doar daca este ziua ceruta
-
-	if [[ -n $LOGINS_PRESENT ]]; then
-               if [[ $OPEN_EPOCH -ge $LOGINS_PRESENT && $OPEN_EPOCH -lt $((LOGINS_PRESENT + 86400)) ]]; then
-                       :
-		else
-			continue #cauta in continuare
-               fi
+        # daca este activ argumentul -p va afisa linia doar daca este ziua ceruta
+	    if [[ -n $LOGINS_PRESENT ]]; then
+            if [[ $OPEN_EPOCH -ge $LOGINS_PRESENT && $OPEN_EPOCH -lt $((LOGINS_PRESENT + 86400)) ]]; then
+                :
+		    else
+		        continue #cauta in continuare
+            fi
         fi
-
 
         if [[ -n $LOGINS_SINCE ]]; then
             if [[ $OPEN_EPOCH -lt $LOGINS_SINCE ]]; then 
-			break
-	    fi
+			    break
+	        fi
         fi
 
         if [[ -n $LOGINS_UNTIL ]]; then
-		if [[ $OPEN_EPOCH -gt $LOGINS_UNTIL ]]; then 
-			continue  #trece la urmatoarea linie, o ignora pe cea prezenta
-
-		fi
+		    if [[ $OPEN_EPOCH -gt $LOGINS_UNTIL ]]; then 
+			    continue  #trece la urmatoarea linie, o ignora pe cea prezenta
+		    fi
         fi
-
 
         USER=$(echo $MSG | grep -Eo "user (\w+)" | awk '{print $2}')
 
         if [[ -z $CLOSE_ISO_DATE ]]; then
-            # sesiune deschisa, neincheiata
-            echo "$USER  tty2  tty2  $OPEN_DATE   still logged in"
+           # sesiune deschisa, neincheiata
+           echo "$USER  tty2  tty2  $OPEN_DATE   still logged in"
         else
             # sesiune deschisa, incheiata
             CLOSE_DATE=$(date -d "$CLOSE_ISO_DATE" "+%H:%M")
@@ -110,7 +106,7 @@ zcat -f $LOG_FILES \
                 echo "$USER  tty2  tty2  $OPEN_DATE - $CLOSE_DATE ($DURATION_DAYS+$DURATION)"
             fi
         fi
-	elif [[ $MSG == *closed* ]]; then
+	elif [[ $MSG == *"powering down"* ]]; then
         # sesiune inchisa
 		CLOSE_ISO_DATE=$ISO_DATE
 	fi
