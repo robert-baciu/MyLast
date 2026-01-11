@@ -18,6 +18,10 @@ while [[ $# -gt 0 ]]; do
             ARG_UNTIL="$2"
             shift 2
             ;;
+        *)
+            echo "Invalid argument: $1"
+            exit 1
+            ;;
     esac
 done
 
@@ -48,7 +52,7 @@ fi
 
 LOG_FILES="/var/log/auth.log*"
 
-zcat -f $LOG_FILES | grep "authentication failure" | grep -v "ftp" | sort -r |  while read ISO_DATE MSG; do
+zcat -f $LOG_FILES | grep "authentication failure" | grep -v "ftp" | sort -r | while read ISO_DATE MSG; do
 	if [[ -n $LOGINS_LINE_LIMIT ]]; then
 		if [[ $LOGINS_LINE_LIMIT -gt 0 ]]; then
 			LOGINS_LINE_LIMIT=$((LOGINS_LINE_LIMIT - 1))
@@ -56,31 +60,30 @@ zcat -f $LOG_FILES | grep "authentication failure" | grep -v "ftp" | sort -r |  
 			break
 		fi
 	fi
- 
+
 	DATE=$(date -d "$ISO_DATE" "+%a %b %d %H:%M")
 	EPOCH_TIME=$(date -d "$ISO_DATE" +%s)
 
-if [[ -n $LOGINS_PRESENT ]]; then
-               if [[ $EPOCH_TIME -ge $LOGINS_PRESENT && $EPOCH_TIME -lt $((LOGINS_PRESENT + 86400)) ]]; then
-                       :
-		else
-			continue 
-               fi
+    if [[ -n $LOGINS_PRESENT ]]; then
+        if ! [[ $LOGINS_PRESENT -le $EPOCH_TIME && $EPOCH_TIME -le $(( $LOGINS_PRESENT + 60 )) ]]; then
+            continue 
         fi
+    fi
 
-        if [[ -n $LOGINS_SINCE ]]; then
-            if [[ $EPOCH_TIME -lt $LOGINS_SINCE ]]; then 
-			break
-	    fi
+    if [[ -n $LOGINS_SINCE ]]; then
+        if [[ $EPOCH_TIME -lt $LOGINS_SINCE ]]; then 
+            break
         fi
+    fi
 
-        if [[ -n $LOGINS_UNTIL ]]; then
-		if [[ $EPOCH_TIME -gt $LOGINS_UNTIL ]]; then 
-			continue  
-		fi
+    if [[ -n $LOGINS_UNTIL ]]; then
+        if [[ $EPOCH_TIME -gt $LOGINS_UNTIL ]]; then 
+            continue  
         fi
+    fi
 
-	HOUR=$(echo $DATE | awk '{print $4}')
-	USER=$(echo $MSG | awk '{print $NF}' | awk -F'=' '{print $2}')
-	echo  $USER  "seat0"  "login screen"  $DATE - $HOUR  "(00:00)"
+    HOUR=$(echo $DATE | awk '{print $4}')
+    USER=$(echo $MSG | awk '{print $NF}' | awk -F'=' '{print $2}')
+
+    echo  $USER  "seat0"  "login screen"  $DATE - $HOUR  "(00:00)"
 done 
