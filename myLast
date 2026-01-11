@@ -96,7 +96,7 @@ zcat -f $LOG_FILES \
             fi
         fi
 
-        USER=$(echo $MSG | grep -Eo "user (\w+)" | awk '{print $2}')
+        USER=$(echo $MSG | grep -Eo "user \w+" | awk '{print $2}')
 
         if [[ -z $CLOSE_ISO_DATE ]]; then
             # sesiune deschisa, neincheiata
